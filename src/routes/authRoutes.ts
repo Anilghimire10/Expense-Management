@@ -1,5 +1,12 @@
 import express from 'express';
-import { loginUser, refreshToken, registerUser, verifyEmail } from '../controller/authController';
+import {
+  forgotPassword,
+  loginUser,
+  refreshToken,
+  registerUser,
+  resetPassword,
+  verifyEmail,
+} from '../controller/authController';
 import upload from '../utils/multer';
 import { validateRequest } from '../middlewares/validateRequest';
 import { loginSchema, registerSchema } from '../validations/userValidations';
@@ -10,5 +17,7 @@ router.post('/register', validateRequest(registerSchema), upload.single('image')
 router.post('/verifyEmail', verifyEmail);
 router.post('/login', validateRequest(loginSchema), loginUser);
 router.post('/refreshToken', refreshToken);
+router.post('/forgotPassword', forgotPassword);
+router.post('/resetPassword', resetPassword);
 
 export default router;

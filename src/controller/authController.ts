@@ -61,3 +61,31 @@ export const refreshToken = asyncHandler(async (req: Request, res: Response) => 
     refreshToken: result.refreshToken,
   });
 });
+
+export const forgotPassword = asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+
+  if (!email) {
+    throw new ApiError('Email is required', 400);
+  }
+
+  await AuthService.forgotPassword(email);
+
+  return ApiResponse.success(
+    res,
+    'If an account exists with this email, a reset code has been sent',
+  );
+});
+
+export const resetPassword = asyncHandler(async (req: Request, res: Response): Promise<void> => {
+  const { email, resetCode, newPassword, confirmPassword } = req.body;
+
+  // Validate required fields
+  if (!email || !resetCode || !newPassword || !confirmPassword) {
+    throw new ApiError('All fields are required', 400);
+  }
+
+  await AuthService.resetPassword(email, resetCode, newPassword, confirmPassword);
+
+  ApiResponse.success(res, 'Password has been reset successfully');
+});

@@ -15,6 +15,10 @@ export interface IUser extends Document {
   createdAt: Date;
   updatedAt: Date;
   comparePassword(candidatePassword: string): Promise<boolean>;
+  passwordResetCode?: string;
+  passwordResetCodeExpires?: Date;
+  passwordResetAttempts?: number;
+  passwordResetAttemptsExpires?: Date;
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema(
@@ -52,6 +56,20 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
     verificationCodeExpires: {
       type: Date,
     },
+    passwordResetCode: {
+      type: String,
+      select: false,
+    },
+    passwordResetCodeExpires: {
+      type: Date,
+    },
+    passwordResetAttempts: {
+      type: Number,
+      default: 0,
+    },
+    passwordResetAttemptsExpires: {
+      type: Date,
+    },
     role: {
       type: String,
       enum: ['user', 'admin'],
@@ -76,6 +94,25 @@ userSchema.pre<IUser>('save', async function (next) {
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
+
+userSchema.methods.toCleanObject = function () {
+  const userObject = this.toObject();
+
+  delete userObject.password;
+  delete userObject.verificationCode;
+  delete userObject.verificationCodeExpires;
+  delete userObject.passwordResetCode;
+  delete userObject.passwordResetCodeExpires;
+  delete userObject.passwordResetAttempts;
+  delete userObject.passwordResetAttemptsExpires;
+  delete userObject.__v;
+
+  return userObject;
+};
+
+export interface IUser extends Document {
+  toCleanObject(): any;
+}
 
 userSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);

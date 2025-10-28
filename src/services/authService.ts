@@ -1,9 +1,11 @@
-import { User } from '../models/userModel';
+import { IUser, User } from '../models/userModel';
 import { ApiError } from '../utils/apiError';
 import { sendMail } from '../utils/mailHandler';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { Types } from 'mongoose';
 import jwtConfig from '../config/jwtConfig';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
+import { Types } from 'mongoose';
 
 interface AccessTokenPayload {
   id: string;
@@ -52,12 +54,12 @@ export class AuthService {
     });
 
     const emailBody = `
-    <h1>Welcome, ${username}!</h1>
-    <p>Please use the following 4-digit code to verify your email:</p>
-    <h2>${verificationCode}</h2>
-    <p>This code is valid for 24 hours.</p>
-    <p>If you did not request this, please ignore this email.</p>
-  `;
+      <h1>Welcome, ${username}!</h1>
+      <p>Please use the following 4-digit code to verify your email:</p>
+      <h2>${verificationCode}</h2>
+      <p>This code is valid for 24 hours.</p>
+      <p>If you did not request this, please ignore this email.</p>
+    `;
 
     try {
       await sendMail({
@@ -70,14 +72,9 @@ export class AuthService {
       throw new ApiError('Failed to send verification email', 500);
     }
 
-    const userObject = user.toObject() as any;
-    delete userObject.password;
-    delete userObject.verificationCode;
-    delete userObject.verificationCodeExpires;
-
     return {
       success: true,
-      user: userObject,
+      user: user.toCleanObject(),
     };
   }
 
@@ -96,14 +93,9 @@ export class AuthService {
     user.verificationCodeExpires = undefined;
     await user.save();
 
-    const userObject = user.toObject() as any;
-    delete userObject.password;
-    delete userObject.verificationCode;
-    delete userObject.verificationCodeExpires;
-
     return {
       success: true,
-      user: userObject,
+      user: user.toCleanObject(),
     };
   }
 
@@ -126,7 +118,6 @@ export class AuthService {
       throw new ApiError('JWT secret not configured', 500);
     }
 
-    // Convert _id to string
     const userId = (user._id as Types.ObjectId).toString();
 
     const accessToken = jwt.sign(
@@ -136,7 +127,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
       } as AccessTokenPayload,
-      jwtConfig.jwt.secret,
+      jwtConfig.jwt.secret!,
       { expiresIn: jwtConfig.jwt.accessTokenExpiration },
     );
 
@@ -145,18 +136,13 @@ export class AuthService {
         id: userId,
         role: user.role,
       } as RefreshTokenPayload,
-      jwtConfig.jwt.secret,
+      jwtConfig.jwt.secret!,
       { expiresIn: jwtConfig.jwt.refreshTokenExpiration },
     );
 
-    const userObject = user.toObject() as any;
-    delete userObject.password;
-    delete userObject.verificationCode;
-    delete userObject.verificationCodeExpires;
-
     return {
       success: true,
-      user: userObject,
+      user: user.toCleanObject(),
       accessToken,
       refreshToken,
     };
@@ -186,7 +172,6 @@ export class AuthService {
       throw new ApiError('User not found', 401);
     }
 
-    // Convert _id to string
     const userId = (user._id as Types.ObjectId).toString();
 
     const accessToken = jwt.sign(
@@ -196,7 +181,7 @@ export class AuthService {
         username: user.username,
         role: user.role,
       } as AccessTokenPayload,
-      jwtConfig.jwt.secret,
+      jwtConfig.jwt.secret!,
       { expiresIn: jwtConfig.jwt.accessTokenExpiration },
     );
 
@@ -205,20 +190,143 @@ export class AuthService {
         id: userId,
         role: user.role,
       } as RefreshTokenPayload,
-      jwtConfig.jwt.secret,
+      jwtConfig.jwt.secret!,
       { expiresIn: jwtConfig.jwt.refreshTokenExpiration },
     );
 
-    const userObject = user.toObject() as any;
-    delete userObject.password;
-    delete userObject.verificationCode;
-    delete userObject.verificationCodeExpires;
-
     return {
       success: true,
-      user: userObject,
+      user: user.toCleanObject(),
       accessToken,
       refreshToken: newRefreshToken,
     };
+  }
+
+  static async forgotPassword(email: string): Promise<{ success: boolean }> {
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return { success: true };
+    }
+
+    const now = Date.now();
+    if (user.passwordResetCodeExpires && user.passwordResetCodeExpires.getTime() > now) {
+      const timeSinceLastRequest = now - (user.passwordResetCodeExpires.getTime() - 15 * 60 * 1000);
+      if (timeSinceLastRequest < 2 * 60 * 1000) {
+        throw new ApiError('Please wait before requesting another reset code', 429);
+      }
+    }
+
+    const resetCode = Math.floor(1000 + Math.random() * 9000).toString();
+
+    const hashedCode = crypto.createHash('sha256').update(resetCode).digest('hex');
+
+    user.passwordResetCode = hashedCode;
+    user.passwordResetCodeExpires = new Date(Date.now() + 15 * 60 * 1000);
+    user.passwordResetAttempts = 0;
+    user.passwordResetAttemptsExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+    await user.save();
+
+    const emailBody = `
+      <h1>Password Reset Request</h1>
+      <p>Hello ${user.username},</p>
+      <p>You requested to reset your password. Use the code below:</p>
+      <h2 style="color: #4CAF50; letter-spacing: 5px;">${resetCode}</h2>
+      <p>This code is valid for <strong>15 minutes</strong>.</p>
+      <p>If you didn't request this, please ignore this email and secure your account.</p>
+    `;
+
+    try {
+      await sendMail({
+        recipientEmail: user.email,
+        subject: 'Password Reset Code',
+        emailBody,
+      });
+    } catch (error) {
+      user.passwordResetCode = undefined;
+      user.passwordResetCodeExpires = undefined;
+      user.passwordResetAttempts = undefined;
+      user.passwordResetAttemptsExpires = undefined;
+      await user.save();
+      throw new ApiError('Failed to send password reset email', 500);
+    }
+
+    return { success: true };
+  }
+
+  static async resetPassword(
+    email: string,
+    resetCode: string,
+    newPassword: string,
+    confirmPassword: string,
+  ): Promise<void> {
+    if (newPassword !== confirmPassword) {
+      throw new ApiError('Passwords do not match', 400);
+    }
+
+    if (newPassword.length < 6) {
+      throw new ApiError('Password must be at least 6 characters long', 400);
+    }
+
+    const hashedCode = crypto.createHash('sha256').update(resetCode).digest('hex');
+
+    const user: IUser | null = await User.findOne({
+      email: email.toLowerCase(),
+      passwordResetCodeExpires: { $gt: Date.now() },
+    }).select('+password +passwordResetCode');
+
+    if (!user) {
+      throw new ApiError('Invalid or expired reset code', 400);
+    }
+
+    if (
+      user.passwordResetAttemptsExpires &&
+      user.passwordResetAttemptsExpires.getTime() > Date.now()
+    ) {
+      if (user.passwordResetAttempts && user.passwordResetAttempts >= 5) {
+        throw new ApiError('Too many failed attempts. Please request a new code', 429);
+      }
+    } else {
+      user.passwordResetAttempts = 0;
+      user.passwordResetAttemptsExpires = new Date(Date.now() + 15 * 60 * 1000);
+    }
+
+    if (user.passwordResetCode !== hashedCode) {
+      user.passwordResetAttempts = (user.passwordResetAttempts || 0) + 1;
+      await user.save();
+
+      const remainingAttempts = 5 - user.passwordResetAttempts;
+      throw new ApiError(`Invalid reset code. ${remainingAttempts} attempts remaining`, 400);
+    }
+
+    const isSamePassword = await bcrypt.compare(newPassword, user.password);
+    if (isSamePassword) {
+      throw new ApiError('New password cannot be the same as the old password', 400);
+    }
+
+    user.password = newPassword;
+
+    user.passwordResetCode = undefined;
+    user.passwordResetCodeExpires = undefined;
+    user.passwordResetAttempts = undefined;
+    user.passwordResetAttemptsExpires = undefined;
+
+    await user.save();
+
+    try {
+      await sendMail({
+        recipientEmail: user.email,
+        subject: 'Password Reset Successful',
+        emailBody: `
+          <h1>Password Changed</h1>
+          <p>Hello ${user.username},</p>
+          <p>Your password has been successfully reset.</p>
+          <p>If you didn't make this change, please contact support immediately.</p>
+        `,
+      });
+    } catch (error) {
+      console.error('Failed to send confirmation email:', error);
+    }
   }
 }
