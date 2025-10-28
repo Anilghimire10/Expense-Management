@@ -1,0 +1,224 @@
+import { User } from '../models/userModel';
+import { ApiError } from '../utils/apiError';
+import { sendMail } from '../utils/mailHandler';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { Types } from 'mongoose';
+import jwtConfig from '../config/jwtConfig';
+
+interface AccessTokenPayload {
+  id: string;
+  email: string;
+  username: string;
+  role: string;
+}
+
+interface RefreshTokenPayload {
+  id: string;
+  role: string;
+}
+
+interface LoginResponse {
+  success: boolean;
+  user: any;
+  accessToken: string;
+  refreshToken: string;
+}
+
+export class AuthService {
+  static async registerUser(data: {
+    username: string;
+    email: string;
+    phone: string;
+    password: string;
+  }) {
+    const { username, email, phone, password } = data;
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      throw new ApiError('User already exists with this email', 400);
+    }
+
+    const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
+    const verificationCodeExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const user = await User.create({
+      username,
+      email,
+      phoneNumber: phone,
+      password,
+      isVerified: false,
+      verificationCode,
+      verificationCodeExpires,
+    });
+
+    const emailBody = `
+    <h1>Welcome, ${username}!</h1>
+    <p>Please use the following 4-digit code to verify your email:</p>
+    <h2>${verificationCode}</h2>
+    <p>This code is valid for 24 hours.</p>
+    <p>If you did not request this, please ignore this email.</p>
+  `;
+
+    try {
+      await sendMail({
+        recipientEmail: email,
+        subject: 'Verify Your Email',
+        emailBody,
+      });
+    } catch (error) {
+      await User.deleteOne({ _id: user._id });
+      throw new ApiError('Failed to send verification email', 500);
+    }
+
+    const userObject = user.toObject() as any;
+    delete userObject.password;
+    delete userObject.verificationCode;
+    delete userObject.verificationCodeExpires;
+
+    return {
+      success: true,
+      user: userObject,
+    };
+  }
+
+  static async verifyEmail(email: string, verificationCode: string) {
+    const user = await User.findOne({ email, verificationCode });
+    if (!user) {
+      throw new ApiError('Invalid or expired verification code', 400);
+    }
+
+    if (user.verificationCodeExpires && user.verificationCodeExpires < new Date()) {
+      throw new ApiError('Verification code has expired', 400);
+    }
+
+    user.isVerified = true;
+    user.verificationCode = undefined;
+    user.verificationCodeExpires = undefined;
+    await user.save();
+
+    const userObject = user.toObject() as any;
+    delete userObject.password;
+    delete userObject.verificationCode;
+    delete userObject.verificationCodeExpires;
+
+    return {
+      success: true,
+      user: userObject,
+    };
+  }
+
+  static async loginUser(email: string, password: string): Promise<LoginResponse> {
+    const user = await User.findOne({ email }).select('+password');
+    if (!user) {
+      throw new ApiError('Invalid email or password', 401);
+    }
+
+    if (!user.isVerified) {
+      throw new ApiError('Please verify your email before logging in', 403);
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      throw new ApiError('Invalid email or password', 401);
+    }
+
+    if (!jwtConfig.jwt.secret) {
+      throw new ApiError('JWT secret not configured', 500);
+    }
+
+    // Convert _id to string
+    const userId = (user._id as Types.ObjectId).toString();
+
+    const accessToken = jwt.sign(
+      {
+        id: userId,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      } as AccessTokenPayload,
+      jwtConfig.jwt.secret,
+      { expiresIn: jwtConfig.jwt.accessTokenExpiration },
+    );
+
+    const refreshToken = jwt.sign(
+      {
+        id: userId,
+        role: user.role,
+      } as RefreshTokenPayload,
+      jwtConfig.jwt.secret,
+      { expiresIn: jwtConfig.jwt.refreshTokenExpiration },
+    );
+
+    const userObject = user.toObject() as any;
+    delete userObject.password;
+    delete userObject.verificationCode;
+    delete userObject.verificationCodeExpires;
+
+    return {
+      success: true,
+      user: userObject,
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  static async refreshToken(refreshToken: string): Promise<LoginResponse> {
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new ApiError('Refresh token is required and must be a string', 400);
+    }
+
+    if (!jwtConfig.jwt.secret) {
+      throw new ApiError('JWT secret not configured', 500);
+    }
+
+    let decoded: JwtPayload | string;
+    try {
+      decoded = jwt.verify(refreshToken, jwtConfig.jwt.secret);
+      if (typeof decoded === 'string') {
+        throw new ApiError('Invalid refresh token format', 401);
+      }
+    } catch (error) {
+      throw new ApiError('Invalid or expired refresh token', 401);
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user) {
+      throw new ApiError('User not found', 401);
+    }
+
+    // Convert _id to string
+    const userId = (user._id as Types.ObjectId).toString();
+
+    const accessToken = jwt.sign(
+      {
+        id: userId,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+      } as AccessTokenPayload,
+      jwtConfig.jwt.secret,
+      { expiresIn: jwtConfig.jwt.accessTokenExpiration },
+    );
+
+    const newRefreshToken = jwt.sign(
+      {
+        id: userId,
+        role: user.role,
+      } as RefreshTokenPayload,
+      jwtConfig.jwt.secret,
+      { expiresIn: jwtConfig.jwt.refreshTokenExpiration },
+    );
+
+    const userObject = user.toObject() as any;
+    delete userObject.password;
+    delete userObject.verificationCode;
+    delete userObject.verificationCodeExpires;
+
+    return {
+      success: true,
+      user: userObject,
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+}
