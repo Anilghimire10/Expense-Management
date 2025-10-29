@@ -153,7 +153,6 @@ export class ExpenseService {
         },
       },
       { $sort: { date: -1, itemName: 1 } },
-      // Facet to get both data and total count
       {
         $facet: {
           data: [

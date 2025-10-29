@@ -36,8 +36,13 @@ export class AuthService {
     const { username, email, phone, password } = data;
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
+
+    if (existingUser && existingUser.isVerified) {
       throw new ApiError('User already exists with this email', 400);
+    }
+
+    if (existingUser && !existingUser.isVerified) {
+      await User.deleteOne({ _id: existingUser._id });
     }
 
     const verificationCode = Math.floor(1000 + Math.random() * 9000).toString();
@@ -54,12 +59,14 @@ export class AuthService {
     });
 
     const emailBody = `
+    <div style="text-align: center; font-family: Arial, sans-serif;">
       <h1>Welcome, ${username}!</h1>
       <p>Please use the following 4-digit code to verify your email:</p>
-      <h2>${verificationCode}</h2>
+      <h2 style="color: #4CAF50; letter-spacing: 5px;">${verificationCode}</h2>
       <p>This code is valid for 24 hours.</p>
       <p>If you did not request this, please ignore this email.</p>
-    `;
+    </div>
+  `;
 
     try {
       await sendMail({
@@ -229,13 +236,15 @@ export class AuthService {
     await user.save();
 
     const emailBody = `
-      <h1>Password Reset Request</h1>
-      <p>Hello ${user.username},</p>
-      <p>You requested to reset your password. Use the code below:</p>
-      <h2 style="color: #4CAF50; letter-spacing: 5px;">${resetCode}</h2>
-      <p>This code is valid for <strong>15 minutes</strong>.</p>
-      <p>If you didn't request this, please ignore this email and secure your account.</p>
-    `;
+  <div style="text-align: center; font-family: Arial, sans-serif;">
+    <h1>Password Reset Request</h1>
+    <p>Hello ${user.username},</p>
+    <p>You requested to reset your password. Use the code below:</p>
+    <h2 style="color: #4CAF50; letter-spacing: 5px;">${resetCode}</h2>
+    <p>This code is valid for <strong>15 minutes</strong>.</p>
+    <p>If you didn't request this, please ignore this email and secure your account.</p>
+  </div>
+`;
 
     try {
       await sendMail({
@@ -319,11 +328,13 @@ export class AuthService {
         recipientEmail: user.email,
         subject: 'Password Reset Successful',
         emailBody: `
-          <h1>Password Changed</h1>
-          <p>Hello ${user.username},</p>
-          <p>Your password has been successfully reset.</p>
-          <p>If you didn't make this change, please contact support immediately.</p>
-        `,
+      <div style="text-align: center; font-family: Arial, sans-serif;">
+        <h1>Password Changed</h1>
+        <p>Hello ${user.username},</p>
+        <p>Your password has been successfully reset.</p>
+        <p>If you didn't make this change, please contact support immediately.</p>
+      </div>
+    `,
       });
     } catch (error) {
       console.error('Failed to send confirmation email:', error);

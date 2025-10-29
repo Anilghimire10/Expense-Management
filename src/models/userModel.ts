@@ -10,7 +10,6 @@ export interface IUser extends Document {
   verificationCodeExpires?: Date;
   verificationCode?: string;
   role: 'user' | 'admin';
-  image?: string;
   createdBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
@@ -44,6 +43,7 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
     },
     phoneNumber: {
       type: String,
+      unique: true,
       trim: true,
     },
     isVerified: {
@@ -74,10 +74,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema(
       type: String,
       enum: ['user', 'admin'],
       default: 'admin',
-    },
-    image: {
-      type: String,
-      default: null,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

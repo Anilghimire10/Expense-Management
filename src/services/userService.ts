@@ -31,13 +31,13 @@ export class UserService {
       });
 
       const emailBody = `
-        <h2>Welcome to Our Platform, ${username}!</h2>
+  <div style="text-align: center; font-family: Arial, sans-serif;">
+    <h2>Welcome to Our Platform, ${username}!</h2>
         <p>Your account has been created by the admin.</p>
         <p><strong>Email:</strong> ${email}</p>
         <p><strong>Password:</strong> ${randomPassword}</p>
-        `;
-      // <p>Please login and change your password for security.</p>
-
+  </div>
+`;
       await sendMail({
         recipientEmail: email,
         subject: 'Your New Account Details',
