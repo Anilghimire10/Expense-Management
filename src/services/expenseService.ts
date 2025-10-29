@@ -5,6 +5,7 @@ interface FilterExpensesParams {
   customer?: string;
   from?: string;
   to?: string;
+  category?: string;
   item?: string;
   userId: string;
   role: string;
@@ -20,76 +21,15 @@ export class ExpenseService {
     return expense;
   }
 
-  // static async getAllExpenses(userId: string, role: string) {
-  //   const filter: any = {};
-
-  //   if (role === 'admin') {
-  //     filter.createdBy = userId;
-  //   } else {
-  //     filter.customer = userId;
-  //   }
-
-  //   const expenses = await Expense.find(filter)
-  //     .sort({ createdAt: -1 })
-  //     .populate('customer', 'username email')
-  //     .populate('createdBy', 'username email');
-  //   return expenses;
-  // }
-
-  //   static async getExpenseById(id: string, userId: string, role: string) {
-  //     const filter: any = { _id: id };
-
-  //     if (role === 'admin') {
-  //       filter.createdBy = userId; // Ensure admin only accesses their own expenses
-  //     } else {
-  //       filter.customer = userId; // Users access their own expenses
-  //     }
-
-  //     const expense = await Expense.findOne(filter).populate('customer', 'username email');
-  //     if (!expense) throw new ApiError('Expense not found or unauthorized', 404);
-  //     return expense;
-  //   }
-
-  //   static async updateExpense(
-  //     id: string,
-  //     data: Partial<ExpenseDocument>,
-  //     userId: string,
-  //     role: string,
-  //   ) {
-  //     const filter: any = { _id: id };
-
-  //     if (role === 'admin') {
-  //       filter.createdBy = userId;
-  //     } else {
-  //       filter.customer = userId;
-  //     }
-
-  //     const expense = await Expense.findOne(filter);
-  //     if (!expense) throw new ApiError('Expense not found or unauthorized', 404);
-
-  //     Object.assign(expense, data);
-  //     await expense.save();
-  //     return expense;
-  //   }
-
-  //   static async deleteExpense(id: string, userId: string, role: string) {
-  //     const filter: any = { _id: id };
-
-  //     if (role === 'admin') {
-  //       filter.createdBy = userId;
-  //     } else {
-  //       filter.customer = userId;
-  //     }
-
-  //     const deleted = await Expense.findOneAndDelete(filter);
-  //     if (!deleted) throw new ApiError('Expense not found or unauthorized', 404);
-  //     return deleted;
-  //  }
+  static async getCategories(adminId: string): Promise<string[]> {
+    const categories = await Expense.distinct('category', { createdBy: adminId });
+    return categories;
+  }
 
   static filterExpenses = async (
     params: FilterExpensesParams & { page?: number; limit?: number },
   ) => {
-    const { customer, from, to, item, userId, role, page = 1, limit = 10 } = params;
+    const { customer, from, to, item, category, userId, role, page = 1, limit = 10 } = params;
 
     const matchStage: any = {};
 
@@ -108,6 +48,10 @@ export class ExpenseService {
       matchStage.createdAt = {};
       if (from) matchStage.createdAt.$gte = new Date(from);
       if (to) matchStage.createdAt.$lte = new Date(to);
+    }
+
+    if (category) {
+      matchStage.category = { $regex: category, $options: 'i' }; // case-insensitive
     }
 
     const pipeline: any[] = [{ $match: matchStage }, { $unwind: '$expenseItems' }];

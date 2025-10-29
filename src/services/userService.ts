@@ -62,4 +62,9 @@ export class UserService {
       throw new ApiError('Failed to create user or send email', 500);
     }
   }
+
+  static async getEmployee(adminId: string) {
+    const employees = await User.find({ createdBy: adminId, role: 'user' });
+    return employees.map((emp) => emp.toCleanObject());
+  }
 }

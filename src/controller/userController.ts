@@ -26,3 +26,13 @@ export const createUserByAdmin = asyncHandler(async (req: Request, res: Response
 
   return ApiResponse.success(res, result.message, { user: result.user });
 });
+
+export const getEmployee = asyncHandler(async (req: Request, res: Response) => {
+  const admin = req.user;
+  if (!admin || admin.role !== 'admin') {
+    throw new ApiError('Only admins can view employees ', 403);
+  }
+  const employee = await UserService.getEmployee(admin.id);
+
+  return ApiResponse.success(res, 'Employees fetched successfully', employee);
+});

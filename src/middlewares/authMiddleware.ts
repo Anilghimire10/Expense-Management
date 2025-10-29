@@ -30,7 +30,8 @@ export const authMiddleware =
     try {
       const decoded = jwt.verify(token, jwtConfig.jwt.secret) as DecodedToken;
       (req as any).user = decoded;
-      console.log(decoded);
+      // console.log(decoded);
+
       // Check if user has required roles
       if (roles.length && !roles.includes(decoded.role)) {
         ApiResponse.error(res, 'Unauthorized, role mismatch', 403);

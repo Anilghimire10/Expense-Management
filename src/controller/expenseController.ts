@@ -53,7 +53,7 @@ export const createExpense = asyncHandler(async (req: Request, res: Response) =>
 // });
 
 export const filterExpenses = asyncHandler(async (req: Request, res: Response) => {
-  const { customer, from, to, item, page, limit } = req.query;
+  const { customer, from, to, item, category, page, limit } = req.query;
   const user = (req as any).user;
 
   if (!user) {
@@ -65,6 +65,7 @@ export const filterExpenses = asyncHandler(async (req: Request, res: Response) =
     from: from as string,
     to: to as string,
     item: item as string,
+    category: category as string,
     page: page ? parseInt(page as string, 10) : 1,
     limit: limit ? parseInt(limit as string, 10) : 10,
     userId: user.id,
@@ -72,4 +73,11 @@ export const filterExpenses = asyncHandler(async (req: Request, res: Response) =
   });
 
   return ApiResponse.success(res, 'Expenses filtered successfully', expenses);
+});
+
+export const getExpenses = asyncHandler(async (req: Request, res: Response) => {
+  const admin = req.user;
+
+  const categories = await ExpenseService.getCategories(admin?.id);
+  return ApiResponse.success(res, 'Categories fetched successfully', categories);
 });
