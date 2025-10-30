@@ -10,7 +10,12 @@ import { createExpenseSchema } from '../validations/expenseValidation';
 
 const router = express.Router();
 
-router.post('/', validateRequest(createExpenseSchema), authMiddleware(['admin']), createExpense);
+router.post(
+  '/',
+  validateRequest(createExpenseSchema),
+  authMiddleware(['admin', 'user']),
+  createExpense,
+);
 router.get('/', authMiddleware(['admin']), filterExpenses);
 router.get('/category', authMiddleware(['admin', 'user']), getExpensesCategories);
 
