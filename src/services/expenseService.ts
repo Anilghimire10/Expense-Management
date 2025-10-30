@@ -32,9 +32,7 @@ export class ExpenseService {
     return categories;
   }
 
-  static filterExpenses = async (
-    params: FilterExpensesParams & { page?: number; limit?: number },
-  ) => {
+  static async filterExpenses(params: FilterExpensesParams & { page?: number; limit?: number }) {
     const { customer, from, to, item, category, userId, role, page = 1, limit = 10 } = params;
 
     const matchStage: any = {};
@@ -57,7 +55,7 @@ export class ExpenseService {
     }
 
     if (category) {
-      matchStage.category = { $regex: category, $options: 'i' }; // case-insensitive
+      matchStage.category = { $regex: category, $options: 'i' };
     }
 
     const pipeline: any[] = [{ $match: matchStage }, { $unwind: '$expenseItems' }];
@@ -81,16 +79,15 @@ export class ExpenseService {
       { $unwind: { path: '$customerData', preserveNullAndEmptyArrays: true } },
       {
         $addFields: {
-          normalizedItem: { $toLower: { $trim: { input: '$expenseItems.name' } } },
           saleDate: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
         },
       },
       {
         $group: {
           _id: {
-            itemName: '$normalizedItem',
-            date: '$saleDate',
             customer: '$customerData.username',
+            category: '$category',
+            itemName: '$expenseItems.name',
           },
           itemName: { $first: '$expenseItems.name' },
           price: { $first: '$expenseItems.rate' },
@@ -98,11 +95,11 @@ export class ExpenseService {
           count: { $sum: '$expenseItems.quantity' },
           totalRevenue: { $sum: { $multiply: ['$expenseItems.quantity', '$expenseItems.rate'] } },
           discount: { $first: '$discount' },
-          date: { $first: '$saleDate' },
           customerName: { $first: '$customerData.username' },
+          date: { $first: '$saleDate' },
         },
       },
-      { $sort: { date: -1, itemName: 1 } },
+      { $sort: { customerName: 1, category: 1, itemName: 1 } },
       {
         $facet: {
           data: [
@@ -133,12 +130,34 @@ export class ExpenseService {
     const totalItems = result[0].totalCount[0]?.count || 0;
     const totalPages = Math.ceil(totalItems / limit);
 
+    // Chart pipeline
+    const chart = await Expense.aggregate([
+      { $match: matchStage },
+      { $unwind: '$expenseItems' },
+      {
+        $group: {
+          _id: '$category',
+          totalRevenue: { $sum: { $multiply: ['$expenseItems.quantity', '$expenseItems.rate'] } },
+          count: { $sum: '$expenseItems.quantity' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          category: '$_id',
+          totalRevenue: 1,
+          count: 1,
+        },
+      },
+    ]);
+
     return {
       items,
+      chart,
       page,
       limit,
       totalItems,
       totalPages,
     };
-  };
+  }
 }
