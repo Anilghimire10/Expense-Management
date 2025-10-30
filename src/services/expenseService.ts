@@ -21,8 +21,14 @@ export class ExpenseService {
     return expense;
   }
 
-  static async getCategories(adminId: string): Promise<string[]> {
-    const categories = await Expense.distinct('category', { createdBy: adminId });
+  static async getCategories(adminId: string, customerId?: string): Promise<string[]> {
+    const filter: any = { createdBy: adminId };
+
+    if (customerId) {
+      filter.customer = customerId;
+    }
+
+    const categories = await Expense.distinct('category', filter);
     return categories;
   }
 

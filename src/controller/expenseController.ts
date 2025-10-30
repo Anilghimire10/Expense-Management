@@ -36,9 +36,11 @@ export const filterExpenses = asyncHandler(async (req: Request, res: Response) =
   return ApiResponse.success(res, 'Expenses filtered successfully', expenses);
 });
 
-export const getExpenses = asyncHandler(async (req: Request, res: Response) => {
+export const getExpensesCategories = asyncHandler(async (req: Request, res: Response) => {
   const admin = req.user;
+  const { customerId } = req.query;
 
-  const categories = await ExpenseService.getCategories(admin?.id);
+  const categories = await ExpenseService.getCategories(admin?.id, customerId as string);
+
   return ApiResponse.success(res, 'Categories fetched successfully', categories);
 });
