@@ -44,7 +44,4 @@ export const createExpenseSchema = Joi.object({
   discount: Joi.number().min(0).default(0).messages({
     'number.min': 'Discount cannot be negative',
   }),
-  createdBy: objectId.required().messages({
-    'any.required': 'CreatedBy user is required',
-  }),
 });
