@@ -80,7 +80,6 @@ export const forgotPassword = asyncHandler(async (req: Request, res: Response) =
 export const resetPassword = asyncHandler(async (req: Request, res: Response): Promise<void> => {
   const { email, resetCode, newPassword, confirmPassword } = req.body;
 
-  // Validate required fields
   if (!email || !resetCode || !newPassword || !confirmPassword) {
     throw new ApiError('All fields are required', 400);
   }

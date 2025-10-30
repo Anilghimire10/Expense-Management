@@ -13,45 +13,6 @@ export const createExpense = asyncHandler(async (req: Request, res: Response) =>
   return ApiResponse.success(res, 'Expense created successfully', result);
 });
 
-// export const getAllExpenses = asyncHandler(async (req: Request, res: Response) => {
-//   const user = (req as any).user;
-//   if (!user) {
-//     throw new ApiError('Unauthorized, user not found', 401);
-//   }
-//   const result = await ExpenseService.getAllExpenses(user.id, user.role);
-//   return ApiResponse.success(res, 'Expenses fetched successfully', result);
-// });
-
-// export const getExpenseById = asyncHandler(async (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   const user = (req as any).user;
-//   if (!user) {
-//     throw new ApiError('Unauthorized, user not found', 401);
-//   }
-//   const result = await ExpenseService.getExpenseById(id, user.id, user.role);
-//   return ApiResponse.success(res, 'Expense fetched successfully', result);
-// });
-
-// export const updateExpense = asyncHandler(async (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   const user = (req as any).user;
-//   if (!user) {
-//     throw new ApiError('Unauthorized, user not found', 401);
-//   }
-//   const result = await ExpenseService.updateExpense(id, req.body, user.id, user.role);
-//   return ApiResponse.success(res, 'Expense updated successfully', result);
-// });
-
-// export const deleteExpense = asyncHandler(async (req: Request, res: Response) => {
-//   const { id } = req.params;
-//   const user = (req as any).user;
-//   if (!user) {
-//     throw new ApiError('Unauthorized, user not found', 401);
-//   }
-//   await ExpenseService.deleteExpense(id, user.id, user.role);
-//   return ApiResponse.success(res, 'Expense deleted successfully', {});
-// });
-
 export const filterExpenses = asyncHandler(async (req: Request, res: Response) => {
   const { customer, from, to, item, category, page, limit } = req.query;
   const user = (req as any).user;

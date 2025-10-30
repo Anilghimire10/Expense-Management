@@ -1,14 +1,6 @@
 import express from 'express';
 import { authMiddleware } from '../middlewares/authMiddleware';
-import {
-  createExpense,
-  filterExpenses,
-  getExpenses,
-  //   deleteExpense,
-  // getAllExpenses,
-  //   getExpenseById,
-  //   updateExpense,
-} from '../controller/expenseController';
+import { createExpense, filterExpenses, getExpenses } from '../controller/expenseController';
 import { validateRequest } from '../middlewares/validateRequest';
 import { createExpenseSchema } from '../validations/expenseValidation';
 
@@ -16,9 +8,6 @@ const router = express.Router();
 
 router.post('/', validateRequest(createExpenseSchema), authMiddleware(['admin']), createExpense);
 router.get('/', authMiddleware(['admin']), filterExpenses);
-router.get('/category', authMiddleware(['admin']), getExpenses);
-// router.get('/', authMiddleware(['admin']), getAllExpenses);
-// router.get('/:id', authMiddleware(['admin']), getExpenseById);
-// router.put('/:id', authMiddleware(['admin']), updateExpense);
-// router.delete('/:id', authMiddleware(['admin']), deleteExpense);
+router.get('/category', authMiddleware(['admin', 'user']), getExpenses);
+
 export default router;

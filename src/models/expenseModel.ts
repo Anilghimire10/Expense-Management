@@ -58,12 +58,8 @@ ExpenseSchema.pre('save', function (next) {
 
   this.subTotal = subTotal;
 
-  // Apply discount (assuming it's percentage)
-  // const afterDiscount = subTotal - (this.discount / 100) * subTotal;
-
   const afterDiscount = subTotal - this.discount;
 
-  // Apply VAT (percentage)
   const total = afterDiscount + (this.vat / 100) * afterDiscount;
 
   this.total = total;
