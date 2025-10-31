@@ -3,6 +3,7 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/apiResponse';
 import { ApiError } from '../utils/apiError';
 import { UserService } from '../services/userService';
+import { User } from '../models/userModel';
 
 export const createUserByAdmin = asyncHandler(async (req: Request, res: Response) => {
   const admin = req.user;
@@ -35,4 +36,10 @@ export const getEmployee = asyncHandler(async (req: Request, res: Response) => {
   const employee = await UserService.getEmployee(admin.id);
 
   return ApiResponse.success(res, 'Employees fetched successfully', employee);
+});
+
+export const deleteUser = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  await UserService.deleteEmplyee(id);
+  return ApiResponse.success(res, 'Employee deleted successfully');
 });

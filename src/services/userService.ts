@@ -67,4 +67,8 @@ export class UserService {
     const employees = await User.find({ createdBy: adminId, role: 'user' });
     return employees.map((emp) => emp.toCleanObject());
   }
+
+  static async deleteEmplyee(id: string) {
+    await User.findByIdAndDelete(id);
+  }
 }
