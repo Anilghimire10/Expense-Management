@@ -69,6 +69,12 @@ export class UserService {
   }
 
   static async deleteEmplyee(id: string) {
-    await User.findByIdAndDelete(id);
+    const deletedUser = await User.findOneAndDelete({ _id: id, role: 'user' });
+
+    if (!deletedUser) {
+      throw new ApiError('User not found or not authorized to delete', 404);
+    }
+
+    return deletedUser;
   }
 }

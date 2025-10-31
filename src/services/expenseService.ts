@@ -131,6 +131,7 @@ export class ExpenseService {
     const totalPages = Math.ceil(totalItems / limit);
 
     // Chart pipeline
+
     const chart = await Expense.aggregate([
       { $match: matchStage },
       { $unwind: '$expenseItems' },
