@@ -53,19 +53,19 @@ const ExpenseSchema = new Schema<ExpenseDocument>(
 );
 
 // Automatically calculate subtotal and total before saving
-ExpenseSchema.pre('save', function (next) {
-  const subTotal = this.expenseItems.reduce((sum, item) => sum + item.quantity * item.rate, 0);
+// ExpenseSchema.pre('save', function (next) {
+//   const subTotal = this.expenseItems.reduce((sum, item) => sum + item.quantity * item.rate, 0);
 
-  this.subTotal = subTotal;
+//   this.subTotal = subTotal;
 
-  const afterDiscount = subTotal - this.discount;
+//   const afterDiscount = subTotal - this.discount;
 
-  const total = afterDiscount + (this.vat / 100) * afterDiscount;
+//   const total = afterDiscount + (this.vat / 100) * afterDiscount;
 
-  this.total = total;
+//   this.total = total;
 
-  next();
-});
+//   next();
+// });
 
 export const Expense: Model<ExpenseDocument> =
   mongoose.models.Expense || mongoose.model<ExpenseDocument>('Expense', ExpenseSchema);

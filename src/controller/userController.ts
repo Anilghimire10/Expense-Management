@@ -3,7 +3,6 @@ import { asyncHandler } from '../utils/asyncHandler';
 import { ApiResponse } from '../utils/apiResponse';
 import { ApiError } from '../utils/apiError';
 import { UserService } from '../services/userService';
-import { User } from '../models/userModel';
 
 export const createUserByAdmin = asyncHandler(async (req: Request, res: Response) => {
   const admin = req.user;

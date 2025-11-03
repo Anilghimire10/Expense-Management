@@ -28,12 +28,12 @@ const storage = multer.diskStorage({
 });
 
 // File filter to allow only images
-const fileFilter = (req: Request, file: Express.Multer.File, cb: FileFilterCallback) => {
+const fileFilter = (req: Request, file: Express.Multer.File, cb: FileFilterCallback): void => {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only JPEG, PNG, and GIF files are allowed'), false);
+    cb(new Error('Only JPEG, PNG, and GIF files are allowed'));
   }
 };
 
@@ -41,7 +41,7 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: FileFilterCallb
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 10 * 1024 * 1024 },
 });
 
 export default upload;
